@@ -10,7 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use('/api', apiRoutes);
 app.use('/auth', authRoutes);
+const sequelize = require('./db');
+const Housing = require('./models/Housing');
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+sequelize.sync().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 });
