@@ -10,9 +10,9 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useNavigate } from 'react-router-dom';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
-
 
 const regionNames = {
   '023210000000': 'REGION ZACHODNIOPOMORSKIE',
@@ -43,8 +43,13 @@ const housingTypeNames = {
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('060610000000');
-  const [selectedType, setSelectedType] = useState('633663'); // domyślny typ
+  const [selectedType, setSelectedType] = useState('633663');
+  const allRegionIds = Object.keys(regionNames);
+  const [visibleRegions, setVisibleRegions] = useState(() =>
+    Object.fromEntries(allRegionIds.map(id => [id, true]))
+  );
+  const [nbpRefHistoryAvg, setNbpRefHistoryAvg] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
@@ -53,78 +58,79 @@ const Dashboard = () => {
       .catch(() => setErr('Błąd pobierania danych z serwera'));
   }, []);
 
-const [nbpRefHistoryAvg, setNbpRefHistoryAvg] = useState([]);
+  useEffect(() => {
+    fetch('http://localhost:4000/api/nbp-ref-history-avg')
+      .then(res => res.json())
+      .then(setNbpRefHistoryAvg)
+      .catch(() => {});
+  }, []);
 
-useEffect(() => {
-  fetch('http://localhost:4000/api/nbp-ref-history-avg')
-    .then(res => res.json())
-    .then(setNbpRefHistoryAvg)
-    .catch(() => {});
-}, []);
-
-const nbpRefHistoryAvgFiltered = nbpRefHistoryAvg.filter(
-  r => parseInt(r.year, 10) >= 2013 && parseInt(r.year, 10) <= 2023
-);
-
-const nbpRefHistoryLabels = nbpRefHistoryAvgFiltered.map(r => r.year);
-const nbpRefHistoryValues = nbpRefHistoryAvgFiltered.map(r => r.avgRate);
-
-const nbpRefHistoryChartData = {
-  labels: nbpRefHistoryLabels,
-  datasets: [
-    {
-      label: 'Średnia roczna stopa referencyjna NBP',
-      data: nbpRefHistoryValues,
-      borderColor: 'orange',
-      backgroundColor: 'rgba(255,165,0,0.1)',
-      tension: 0.2,
-    },
-  ],
-};
   if (err) return <div style={{ color: 'red' }}>{err}</div>;
   if (!data) return <div>Ładowanie danych...</div>;
 
-  // Pobierz dane dla wybranego typu mieszkania i stopy procentowej
-  const housingTypeData = data.housing[selectedType] || [];
-  // Filtruj dane dla wybranego regionu
-  const housingRegion = housingTypeData.find(r => r.regionId === selectedRegion);
-  const housingResults = (housingRegion?.data?.results || []).filter(
-    r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
+  const handleRegionCheckbox = (regionId) => {
+    setVisibleRegions(prev => ({
+      ...prev,
+      [regionId]: !prev[regionId]
+    }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/');
+  };
+
+  const nbpRefHistoryAvgFiltered = nbpRefHistoryAvg.filter(
+    r => parseInt(r.year, 10) >= 2013 && parseInt(r.year, 10) <= 2023
   );
 
+  const nbpRefHistoryLabels = nbpRefHistoryAvgFiltered.map(r => r.year);
+  const nbpRefHistoryValues = nbpRefHistoryAvgFiltered.map(r => r.avgRate);
 
-  const years = housingResults.map(r => r.year);
-  const housingValues = housingResults.map(r => r.values[0]?.val);
-
-  const housingChartData = {
-    labels: years,
+  const nbpRefHistoryChartData = {
+    labels: nbpRefHistoryLabels,
     datasets: [
       {
-        label: `Ceny mieszkań (${regionNames[selectedRegion]})`,
-        data: housingValues,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(0,0,255,0.1)',
+        label: 'Średnia roczna stopa referencyjna NBP',
+        data: nbpRefHistoryValues,
+        borderColor: 'orange',
+        backgroundColor: 'rgba(255,165,0,0.1)',
+        tension: 0.2,
       },
     ],
   };
 
+  const housingTypeData = data.housing[selectedType] || [];
+  const datasets = housingTypeData
+    .filter(region => visibleRegions[region.regionId])
+    .map(region => {
+      const results = (region.data?.results || []).filter(
+        r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
+      );
+      return {
+        label: regionNames[region.regionId] || region.regionId,
+        data: results.map(r => r.values[0]?.val),
+        borderColor: '#' + ((Math.abs(region.regionId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) * 1234567) % 0xffffff).toString(16).padStart(6, '0'),
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        tension: 0.2,
+      };
+    });
+
+  const years = Array.from({ length: 11 }, (_, i) => (2013 + i).toString());
+
+  const housingChartData = {
+    labels: years,
+    datasets,
+  };
 
   return (
     <div>
       <h1>Panel użytkownika</h1>
+      <button onClick={handleLogout} style={{ float: 'right', marginTop: '-3rem' }}>Wyloguj</button>
       <p>Jesteś zalogowany!</p>
       <h2>Dane z BDL</h2>
       <div>
-        <label>Wybierz region:&nbsp;
-          <select value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)}>
-            {Object.keys(regionNames).map(regionId => (
-              <option key={regionId} value={regionId}>
-                {regionNames[regionId]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{ marginLeft: 16 }}>Typ mieszkania:&nbsp;
+        <label>Typ mieszkania:&nbsp;
           <select value={selectedType} onChange={e => setSelectedType(e.target.value)}>
             {Object.entries(housingTypeNames).map(([typeId, name]) => (
               <option key={typeId} value={typeId}>{name}</option>
@@ -132,14 +138,39 @@ const nbpRefHistoryChartData = {
           </select>
         </label>
       </div>
-      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
+      <div style={{ maxWidth: 1000, margin: '2rem auto' }}>
         <h3>Ceny mieszkań</h3>
-        <Line data={housingChartData} />
+        <Line
+          data={housingChartData}
+          options={{
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Cena (PLN)'
+                },
+                ticks: {
+                  stepSize: 50000,
+                  callback: function(value) {
+                    return value.toLocaleString('pl-PL') + ' zł';
+                  }
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Rok'
+                }
+              }
+            }
+          }}
+        />
+
       </div>
-        <div style={{ maxWidth: 800, margin: '2rem auto' }}>
-          <h3>Stopa referencyjna NBP (historia)</h3>
-            <Line data={nbpRefHistoryChartData} />
-        </div>
+      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
+        <h3>Stopa referencyjna NBP (historia)</h3>
+        <Line data={nbpRefHistoryChartData} />
+      </div>
     </div>
   );
 };
