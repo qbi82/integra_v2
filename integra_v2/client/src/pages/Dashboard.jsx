@@ -45,7 +45,6 @@ const Dashboard = () => {
   const [err, setErr] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('060610000000');
   const [selectedType, setSelectedType] = useState('633663'); // domyślny typ
-  const [nbpRates, setNbpRates] = useState([]);
 
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
@@ -87,21 +86,15 @@ const nbpRefHistoryChartData = {
 
   // Pobierz dane dla wybranego typu mieszkania i stopy procentowej
   const housingTypeData = data.housing[selectedType] || [];
-  const interest = data.interest;
-
   // Filtruj dane dla wybranego regionu
   const housingRegion = housingTypeData.find(r => r.regionId === selectedRegion);
   const housingResults = (housingRegion?.data?.results || []).filter(
     r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
   );
-  const interestResults = (interest?.find(r => r.regionId === selectedRegion)?.data?.results || []).filter(
-    r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
-  );
+
 
   const years = housingResults.map(r => r.year);
   const housingValues = housingResults.map(r => r.values[0]?.val);
-  const interestYears = interestResults.map(r => r.year);
-  const interestValues = interestResults.map(r => r.values[0]?.val);
 
   const housingChartData = {
     labels: years,
@@ -115,17 +108,6 @@ const nbpRefHistoryChartData = {
     ],
   };
 
-  const interestChartData = {
-    labels: interestYears,
-    datasets: [
-      {
-        label: 'Stopy procentowe (Polska)',
-        data: interestValues,
-        borderColor: 'green',
-        backgroundColor: 'rgba(0,255,0,0.1)',
-      },
-    ],
-  };
 
   return (
     <div>
