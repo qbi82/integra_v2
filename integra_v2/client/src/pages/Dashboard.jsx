@@ -13,6 +13,7 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
+
 const regionNames = {
   '023210000000': 'REGION ZACHODNIOPOMORSKIE',
   '030210000000': 'REGION DOLNOŚLĄSKIE',
@@ -44,6 +45,7 @@ const Dashboard = () => {
   const [err, setErr] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('060610000000');
   const [selectedType, setSelectedType] = useState('633663'); // domyślny typ
+  const [nbpRates, setNbpRates] = useState([]);
 
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
@@ -52,6 +54,34 @@ const Dashboard = () => {
       .catch(() => setErr('Błąd pobierania danych z serwera'));
   }, []);
 
+const [nbpRefHistoryAvg, setNbpRefHistoryAvg] = useState([]);
+
+useEffect(() => {
+  fetch('http://localhost:4000/api/nbp-ref-history-avg')
+    .then(res => res.json())
+    .then(setNbpRefHistoryAvg)
+    .catch(() => {});
+}, []);
+
+const nbpRefHistoryAvgFiltered = nbpRefHistoryAvg.filter(
+  r => parseInt(r.year, 10) >= 2013 && parseInt(r.year, 10) <= 2023
+);
+
+const nbpRefHistoryLabels = nbpRefHistoryAvgFiltered.map(r => r.year);
+const nbpRefHistoryValues = nbpRefHistoryAvgFiltered.map(r => r.avgRate);
+
+const nbpRefHistoryChartData = {
+  labels: nbpRefHistoryLabels,
+  datasets: [
+    {
+      label: 'Średnia roczna stopa referencyjna NBP',
+      data: nbpRefHistoryValues,
+      borderColor: 'orange',
+      backgroundColor: 'rgba(255,165,0,0.1)',
+      tension: 0.2,
+    },
+  ],
+};
   if (err) return <div style={{ color: 'red' }}>{err}</div>;
   if (!data) return <div>Ładowanie danych...</div>;
 
@@ -61,8 +91,12 @@ const Dashboard = () => {
 
   // Filtruj dane dla wybranego regionu
   const housingRegion = housingTypeData.find(r => r.regionId === selectedRegion);
-  const housingResults = housingRegion?.data?.results?.filter(r => r.values[0]?.val != null) || [];
-  const interestResults = interest?.find(r => r.regionId === selectedRegion)?.data?.results?.filter(r => r.values[0]?.val != null) || [];
+  const housingResults = (housingRegion?.data?.results || []).filter(
+    r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
+  );
+  const interestResults = (interest?.find(r => r.regionId === selectedRegion)?.data?.results || []).filter(
+    r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
+  );
 
   const years = housingResults.map(r => r.year);
   const housingValues = housingResults.map(r => r.values[0]?.val);
@@ -120,10 +154,10 @@ const Dashboard = () => {
         <h3>Ceny mieszkań</h3>
         <Line data={housingChartData} />
       </div>
-      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
-        <h3>Stopy procentowe</h3>
-        <Line data={interestChartData} />
-      </div>
+        <div style={{ maxWidth: 800, margin: '2rem auto' }}>
+          <h3>Stopa referencyjna NBP (historia)</h3>
+            <Line data={nbpRefHistoryChartData} />
+        </div>
     </div>
   );
 };

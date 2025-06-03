@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const Housing = require('../models/Housing');
+const xml2js = require('xml2js');
 
 const BDL_CLIENT_ID = '83ff02da-2edd-4095-33b7-08dd9ceefd0f';
 
@@ -40,9 +41,8 @@ const REGION_IDS = [
 
 
 const YEARS = Array.from({ length: 10 }, (_, i) => 2010 + i);
-const xml2js = require('xml2js');
 
-// ...existing code...
+
 async function fetchBDLData(variableId, years, regionIds) {
   const results = [];
   // Usuwamy xml2js i parser
@@ -102,8 +102,70 @@ async function fetchBDLData(variableId, years, regionIds) {
 
   return results;
 }
-// ...existing code...
+async function fetchNBPRefHistory() {
+  const url = 'https://static.nbp.pl/dane/stopy/stopy_procentowe_archiwum.xml';
+  try {
+    const response = await axios.get(url, { responseType: 'text' });
+    const xml = response.data;
+    const result = await xml2js.parseStringPromise(xml, { explicitArray: false, mergeAttrs: true });
 
+    // Każdy <pozycje> to zmiana stóp, interesuje nas tylko id="ref"
+    const pozycjeArr = Array.isArray(result.stopy_procentowe_archiwum.pozycje)
+      ? result.stopy_procentowe_archiwum.pozycje
+      : [result.stopy_procentowe_archiwum.pozycje];
+
+    // Zbierz daty i wartości stopy referencyjnej
+    const refHistory = pozycjeArr
+      .map(poz => {
+        const date = poz.obowiazuje_od;
+        // pozycja może być tablicą lub obiektem
+        const pozycjaArr = Array.isArray(poz.pozycja) ? poz.pozycja : [poz.pozycja];
+        const ref = pozycjaArr.find(p => p.id === 'ref');
+        if (ref) {
+          return {
+            date,
+            rate: parseFloat(ref.oprocentowanie.replace(',', '.'))
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    return refHistory;
+  } catch (e) {
+    console.error('Błąd pobierania historii stóp NBP:', e.message);
+    return [];
+  }
+}
+
+router.get('/nbp-ref-history-avg', async (req, res) => {
+  const history = await fetchNBPRefHistory();
+
+  // Grupuj po roku i licz średnią
+  const byYear = {};
+  history.forEach(({ date, rate }) => {
+    const year = date.slice(0, 4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(rate);
+  });
+
+  let avgByYear = Object.entries(byYear).map(([year, rates]) => ({
+    year,
+    avgRate: rates.reduce((a, b) => a + b, 0) / rates.length,
+  }));
+
+  // Dodaj brakujące lata 2016-2019 ze stałą wartością 1.5 jeśli nie istnieją
+  ['2016', '2017', '2018', '2019'].forEach(year => {
+    if (!avgByYear.find(obj => obj.year === year)) {
+      avgByYear.push({ year, avgRate: 1.5 });
+    }
+  });
+
+  // Posortuj po roku rosnąco
+  avgByYear = avgByYear.sort((a, b) => a.year.localeCompare(b.year));
+
+  res.json(avgByYear);
+});
 router.get('/bdl-data', async (req, res) => {
   try {
     // Pobierz dane dla wszystkich typów mieszkań
@@ -111,11 +173,11 @@ router.get('/bdl-data', async (req, res) => {
     for (const typeId of housingType) {
       housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
     }
-    const interestData = await fetchBDLData(VARIABLE_IDS.interestRate, YEARS, REGION_IDS);
+      //const interestData = await fetchBDLData(VARIABLE_IDS.interestRate, YEARS, REGION_IDS);
 
     res.json({
       housing: housingData,
-      interest: interestData,
+      
     });
   } catch (e) {
     res.status(500).json({ error: 'Błąd pobierania danych z BDL', details: e.message });
