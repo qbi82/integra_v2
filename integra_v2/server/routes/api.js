@@ -15,6 +15,7 @@ const housingType = [
   '633665', // 'od 60m2 do 80m2',
   '633666', // 'od 80m2 do 100m2',
 ]
+
 const REGION_IDS = [
 '023210000000',// REGION ZACHODNIOPOMORSKIE'
 '030210000000',  //REGION DOLNOŚLĄSKIE
@@ -27,8 +28,12 @@ const REGION_IDS = [
 '060610000000',    //REGION LUBELSKIE
 '061810000000',    //REGION PODKARPACKIE
 '062010000000',    //REGION PODLASKIE
-'071410000000 ',   //REGION WARSZAWSKI STOŁECZNY
-'071420000000 ',  //REGION MAZOWIECKI REGIONALNY
+'071410000000',   //REGION WARSZAWSKI STOŁECZNY
+'071420000000',  //REGION MAZOWIECKI REGIONALNY
+'011210000000',    //REGION MAŁOPOLSKIE
+'012410000000',    //REGION ŚLĄSKIE
+'020810000000',   //REGION LUBUSKIE
+'023010000000',    //REGION WIELKOPOLSKIE
 ];
 
 
@@ -37,14 +42,30 @@ const REGION_IDS = [
 const YEARS = Array.from({ length: 10 }, (_, i) => 2010 + i);
 const xml2js = require('xml2js');
 
+// ...existing code...
 async function fetchBDLData(variableId, years, regionIds) {
   const results = [];
-  const parser = new xml2js.Parser({ explicitArray: false });
+  // Usuwamy xml2js i parser
+
+  // Limit: 5 zapytań na sekundę (anonimowy użytkownik)
+  const REQUESTS_PER_SECOND = 5;
+  let requestCount = 0;
+  let lastRequestTime = Date.now();
 
   for (const regionId of regionIds) {
+    if (requestCount >= REQUESTS_PER_SECOND) {
+      const now = Date.now();
+      const wait = 1000 - (now - lastRequestTime);
+      if (wait > 0) {
+        await new Promise(res => setTimeout(res, wait));
+      }
+      requestCount = 0;
+      lastRequestTime = Date.now();
+    }
+
     const url = `https://bdl.stat.gov.pl/api/v1/data/by-variable/${variableId}`;
     const params = {
-      format: 'xml',
+      format: 'json', // <-- zmiana na JSON
       'unit-parent-id': regionId,
       'unit-level': '3',
       year: years,
@@ -56,41 +77,40 @@ async function fetchBDLData(variableId, years, regionIds) {
         headers: {
           'X-ClientId': BDL_CLIENT_ID,
         },
-        responseType: 'text',
       });
 
-      const parsed = await parser.parseStringPromise(response.data);
-
-      const unitData = parsed.singleVariableData?.results?.unitData;
-      let resultsArr = [];
-      if (unitData && unitData.values && unitData.values.yearVal) {
-        const yearVals = Array.isArray(unitData.values.yearVal)
-          ? unitData.values.yearVal
-          : [unitData.values.yearVal];
-        resultsArr = yearVals.map(yv => ({
-          year: yv.year,
-          values: [{ val: Number(yv.val) }]
-        }));
+      // Odpowiedź jest już w formacie JSON
+      const apiData = response.data;
+      if (apiData.results && apiData.results.length > 0) {
+        results.push({
+          regionId,
+          variableId,
+          data: {
+            results: apiData.results[0].values.map(v => ({
+              year: v.year,
+              values: [{ val: v.val }]
+            }))
+          }
+        });
       }
-
-      results.push({
-        regionId,
-        variableId,
-        data: {
-          results: resultsArr
-        }
-      });
     } catch (error) {
       console.error(`Błąd dla regionu ${regionId}, zmiennej ${variableId}:`, error.message);
     }
+
+    requestCount++;
   }
 
   return results;
 }
+// ...existing code...
 
 router.get('/bdl-data', async (req, res) => {
   try {
-    const housingData = await fetchBDLData(VARIABLE_IDS.housingPrice, YEARS, REGION_IDS);
+    // Pobierz dane dla wszystkich typów mieszkań
+    const housingData = {};
+    for (const typeId of housingType) {
+      housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
+    }
     const interestData = await fetchBDLData(VARIABLE_IDS.interestRate, YEARS, REGION_IDS);
 
     res.json({
