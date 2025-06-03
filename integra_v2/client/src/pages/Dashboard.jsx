@@ -36,7 +36,7 @@ const housingTypeNames = {
   '633663': 'do 40m2',
   '633664': 'od 40.1 m2 do 60m2',
   '633665': 'od 60m2 do 80m2',
-  '633666': 'od 80m2 do 100m2',
+  '633666': 'od 80m2',
 };
 
 const Dashboard = () => {
@@ -55,13 +55,14 @@ const Dashboard = () => {
   if (err) return <div style={{ color: 'red' }}>{err}</div>;
   if (!data) return <div>Ładowanie danych...</div>;
 
-  // Filtruj dane dla wybranego regionu
-  const housingRegion = data.housing.find(r => r.regionId === selectedRegion);
-  const interest = data.interest[1]; // Polska ogółem
+  // Pobierz dane dla wybranego typu mieszkania i stopy procentowej
+  const housingTypeData = data.housing[selectedType] || [];
+  const interest = data.interest;
 
-  // Przygotuj dane do wykresów, filtrując tylko te z wartościami liczbowymi
+  // Filtruj dane dla wybranego regionu
+  const housingRegion = housingTypeData.find(r => r.regionId === selectedRegion);
   const housingResults = housingRegion?.data?.results?.filter(r => r.values[0]?.val != null) || [];
-  const interestResults = interest?.data?.results?.filter(r => r.values[0]?.val != null) || [];
+  const interestResults = interest?.find(r => r.regionId === selectedRegion)?.data?.results?.filter(r => r.values[0]?.val != null) || [];
 
   const years = housingResults.map(r => r.year);
   const housingValues = housingResults.map(r => r.values[0]?.val);
@@ -115,7 +116,14 @@ const Dashboard = () => {
           </select>
         </label>
       </div>
-      {/* ...wykresy jak było... */}
+      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
+        <h3>Ceny mieszkań</h3>
+        <Line data={housingChartData} />
+      </div>
+      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
+        <h3>Stopy procentowe</h3>
+        <Line data={interestChartData} />
+      </div>
     </div>
   );
 };
