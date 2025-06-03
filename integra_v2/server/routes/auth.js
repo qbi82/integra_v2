@@ -1,34 +1,56 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const SECRET = 'tajny_klucz_jwt';
 
-const SECRET = 'tajny_klucz_jwt'; 
-const users = []; 
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Brak tokenu' });
+
+  jwt.verify(token, SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Nieprawidłowy token' });
+    req.user = user;
+    next();
+  });
+}
+
+module.exports = authenticateToken;
 
 router.post('/register', async (req, res) => {
   const { username, password } = req.body;
-  if (users.find(u => u.username === username)) {
+  if (!username || !password)
+    return res.status(400).json({ success: false, message: 'Brak danych' });
+
+  const exists = await User.findOne({ where: { username } });
+  if (exists)
     return res.status(400).json({ success: false, message: 'Użytkownik już istnieje' });
-  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
-  users.push({ username, password: hashedPassword });
+  await User.create({ username, password: hashedPassword });
   res.json({ success: true, message: 'Rejestracja udana' });
 });
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = users.find(u => u.username === username);
-  if (!user) {
+  const user = await User.findOne({ where: { username } });
+  if (!user)
     return res.status(401).json({ success: false, message: 'Nieprawidłowe dane logowania' });
-  }
+
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) {
+  if (!valid)
     return res.status(401).json({ success: false, message: 'Nieprawidłowe dane logowania' });
-  }
+
   const token = jwt.sign({ username }, SECRET, { expiresIn: '1h' });
   res.json({ success: true, token });
 });
+
+const handleLogout = () => {
+  localStorage.removeItem('token');
+  navigate('/');
+};
 
 router.get('/me', (req, res) => {
   const auth = req.headers.authorization;

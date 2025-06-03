@@ -1,7 +1,9 @@
 const { Sequelize } = require('sequelize');
-// ...existing code...
-const sequelize = new Sequelize('projekt_db', 'root', '', {
+
+const sequelize = new Sequelize('projekt_db', 'user', 'password', {
   host: 'localhost',
   dialect: 'mysql',
+  port: 3307,
 });
+
 module.exports = sequelize;

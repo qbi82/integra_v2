@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const apiRoutes = require('./routes/api');
 const authRoutes = require('./routes/auth');
+const User = require('./models/User');
 
 const app = express();
 const PORT = 4000;

@@ -17,6 +17,22 @@ const housingType = [
   '633666', // 'od 80m2 do 100m2',
 ]
 
+const jwt = require('jsonwebtoken');
+const SECRET = 'tajny_klucz_jwt';
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Brak tokenu' });
+
+  jwt.verify(token, SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Nieprawidłowy token' });
+    req.user = user;
+    next();
+  });
+}
+
+module.exports = authenticateToken;
 const REGION_IDS = [
 '023210000000',// REGION ZACHODNIOPOMORSKIE'
 '030210000000',  //REGION DOLNOŚLĄSKIE

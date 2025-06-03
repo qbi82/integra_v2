@@ -64,6 +64,21 @@ const Dashboard = () => {
       .then(setNbpRefHistoryAvg)
       .catch(() => {});
   }, []);
+  useEffect(() => {
+    fetch('http://localhost:4000/api/secure-data', {
+      headers: {
+        Authorization: 'Bearer ' + localStorage.getItem('token')
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        // obsłuż dane chronione
+        console.log('Dane chronione:', data);
+      })
+      .catch(() => {
+        // obsłuż błąd autoryzacji
+      });
+  }, []);
 
   if (err) return <div style={{ color: 'red' }}>{err}</div>;
   if (!data) return <div>Ładowanie danych...</div>;
