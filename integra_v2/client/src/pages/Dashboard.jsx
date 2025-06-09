@@ -49,7 +49,16 @@ const Dashboard = () => {
     Object.fromEntries(allRegionIds.map(id => [id, true]))
   );
   const [nbpRefHistoryAvg, setNbpRefHistoryAvg] = useState([]);
+  const [selectedRegionForTypes, setSelectedRegionForTypes] = useState(allRegionIds[0]);
   const navigate = useNavigate();
+
+  // Wymuś logowanie
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
@@ -64,6 +73,7 @@ const Dashboard = () => {
       .then(setNbpRefHistoryAvg)
       .catch(() => {});
   }, []);
+
   useEffect(() => {
     fetch('http://localhost:4000/api/secure-data', {
       headers: {
@@ -115,6 +125,7 @@ const Dashboard = () => {
     ],
   };
 
+  // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
   const housingTypeData = data.housing[selectedType] || [];
   const datasets = housingTypeData
     .filter(region => visibleRegions[region.regionId])
@@ -138,6 +149,27 @@ const Dashboard = () => {
     datasets,
   };
 
+  // Wykres 2: typy mieszkań na jednym wykresie, region wybierany
+  const datasetsByType = Object.entries(housingTypeNames).map(([typeId, typeName]) => {
+    const regionData = (data.housing[typeId] || []).find(r => r.regionId === selectedRegionForTypes);
+    const results = (regionData?.data?.results || []).filter(
+      r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
+    );
+    return {
+      label: typeName,
+      data: results.map(r => r.values[0]?.val),
+      borderColor: '#' + ((Math.abs(typeId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) * 654321) % 0xffffff).toString(16).padStart(6, '0'),
+      backgroundColor: 'rgba(0,0,0,0.05)',
+      tension: 0.2,
+    };
+  });
+
+  const housingChartDataByType = {
+    labels: years,
+    datasets: datasetsByType,
+  };
+
+  
   return (
     <div>
       <h1>Panel użytkownika</h1>
@@ -153,10 +185,59 @@ const Dashboard = () => {
           </select>
         </label>
       </div>
+      {/* Dwa wykresy obok siebie */}
+      <div style={{ display: 'flex', gap: 32, justifyContent: 'center', margin: '2rem auto', maxWidth: 1700 }}>
+        <div style={{ flex: 1, minWidth: 400 }}>
+          <h3>Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
+          <Line
+            data={housingChartData}
+            options={{
+              scales: {
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Cena (PLN)'
+                  },
+                  ticks: {
+                    stepSize: 50000,
+                    callback: function(value) {
+                      return value.toLocaleString('pl-PL') + ' zł';
+                    }
+                  }
+                },
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Rok'
+                  }
+                }
+              }
+            }}
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 400 }}>
+          <h3>Stopa referencyjna NBP (historia)</h3>
+          <Line data={nbpRefHistoryChartData} />
+        </div>
+      </div>
+      {/* Pozostałe wykresy pod spodem */}
       <div style={{ maxWidth: 1000, margin: '2rem auto' }}>
-        <h3>Ceny mieszkań</h3>
+        <h3>Ceny mieszkań wg typu dla wybranego regionu</h3>
+        <label>
+          Wybierz region:&nbsp;
+          <select
+            value={selectedRegionForTypes}
+            onChange={e => setSelectedRegionForTypes(e.target.value)}
+          >
+            {allRegionIds.map(regionId => (
+              <option key={regionId} value={regionId}>
+                {regionNames[regionId]}
+              </option>
+            ))}
+          </select>
+        </label>
         <Line
-          data={housingChartData}
+          data={housingChartDataByType}
           options={{
             scales: {
               y: {
@@ -180,11 +261,6 @@ const Dashboard = () => {
             }
           }}
         />
-
-      </div>
-      <div style={{ maxWidth: 800, margin: '2rem auto' }}>
-        <h3>Stopa referencyjna NBP (historia)</h3>
-        <Line data={nbpRefHistoryChartData} />
       </div>
     </div>
   );

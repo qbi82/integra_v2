@@ -157,7 +157,6 @@ async function fetchNBPRefHistory() {
 router.get('/nbp-ref-history-avg', async (req, res) => {
   const history = await fetchNBPRefHistory();
 
-  // Grupuj po roku i licz średnią
   const byYear = {};
   history.forEach(({ date, rate }) => {
     const year = date.slice(0, 4);
@@ -170,26 +169,22 @@ router.get('/nbp-ref-history-avg', async (req, res) => {
     avgRate: rates.reduce((a, b) => a + b, 0) / rates.length,
   }));
 
-  // Dodaj brakujące lata 2016-2019 ze stałą wartością 1.5 jeśli nie istnieją
   ['2016', '2017', '2018', '2019'].forEach(year => {
     if (!avgByYear.find(obj => obj.year === year)) {
       avgByYear.push({ year, avgRate: 1.5 });
     }
   });
 
-  // Posortuj po roku rosnąco
   avgByYear = avgByYear.sort((a, b) => a.year.localeCompare(b.year));
 
   res.json(avgByYear);
 });
 router.get('/bdl-data', async (req, res) => {
   try {
-    // Pobierz dane dla wszystkich typów mieszkań
     const housingData = {};
     for (const typeId of housingType) {
       housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
     }
-      //const interestData = await fetchBDLData(VARIABLE_IDS.interestRate, YEARS, REGION_IDS);
 
     res.json({
       housing: housingData,
