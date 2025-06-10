@@ -4,6 +4,7 @@ const router = express.Router();
 const Housing = require('../models/Housing');
 const xml2js = require('xml2js');
 const NBPRefRate = require('../models/NBPRefRate');
+const json2xml = require('json2xml');
 
 const BDL_CLIENT_ID = '83ff02da-2edd-4095-33b7-08dd9ceefd0f';
 
@@ -279,6 +280,100 @@ router.get('/housing-db', async (req, res) => {
 // Przykładowy endpoint testowy
 router.get('/test', (req, res) => {
   res.json({ message: 'API działa!' });
+});
+
+const { Parser: Json2XmlParser } = require('json2xml'); // Dodaj na górze pliku
+
+// ...istniejące importy...
+
+const regionNames = {
+  '023210000000': 'REGION ZACHODNIOPOMORSKIE',
+  '030210000000': 'REGION DOLNOŚLĄSKIE',
+  '031610000000': 'REGION OPOLSKIE',
+  '040410000000': 'REGION KUJAWSKO-POMORSKIE',
+  '042210000000': 'REGION POMORSKIE',
+  '042810000000': 'REGION WARMIŃSKO-MAZURSKIE',
+  '051010000000': 'REGION ŁÓDZKIE',
+  '052610000000': 'REGION ŚWIĘTOKRZYSKIE',
+  '060610000000': 'REGION LUBELSKIE',
+  '061810000000': 'REGION PODKARPACKIE',
+  '062010000000': 'REGION PODLASKIE',
+  '071410000000': 'REGION WARSZAWSKI STOŁECZNY',
+  '071420000000': 'REGION MAZOWIECKI REGIONALNY',
+  '011210000000': 'REGION MAŁOPOLSKIE',
+  '012410000000': 'REGION ŚLĄSKIE',
+  '020810000000': 'REGION LUBUSKIE',
+  '023010000000': 'REGION WIELKOPOLSKIE',
+};
+const housingTypeNames = {
+  '633663': 'do 40m2',
+  '633664': 'od 40.1 m2 do 60m2',
+  '633665': 'od 60m2 do 80m2',
+  '633666': 'od 80m2',
+};
+
+router.get('/export', async (req, res) => {
+  const { regions, types, dateFrom, dateTo, format } = req.query;
+  const regionArr = Array.isArray(regions) ? regions : [regions];
+  const typeArr = Array.isArray(types) ? types : [types];
+  const formats = Array.isArray(format) ? format : [format];
+  const from = parseInt(dateFrom, 10);
+  const to = parseInt(dateTo, 10);
+
+  // Pobierz rekordy mieszkań
+  const records = await Housing.findAll({
+    where: {
+      regionId: regionArr,
+      typeId: typeArr,
+      year: { [require('sequelize').Op.between]: [from, to] }
+    }
+  });
+
+  // Pobierz stopy procentowe z bazy
+  const nbpRates = await NBPRefRate.findAll();
+  const ratesByYear = {};
+  nbpRates.forEach(r => {
+    ratesByYear[r.year] = r.avgRate;
+  });
+
+  // MAPUJEMY NAZWY + stopaRef
+  const data = records.map(r => ({
+    region: regionNames[r.regionId] || r.regionId,
+    type: housingTypeNames[r.typeId] || r.typeId,
+    year: r.year,
+    price: r.price,
+    intRate: ratesByYear[r.year] ?? null
+  }));
+
+  let files = [];
+  if (formats.includes('json')) {
+    files.push({
+      content: JSON.stringify(data, null, 2),
+      type: 'application/json',
+      filename: 'export.json'
+    });
+  }
+  if (formats.includes('xml')) {
+    files.push({
+      content: json2xml({ records: data }),
+      type: 'application/xml',
+      filename: 'export.xml'
+    });
+  }
+
+  if (files.length === 1) {
+    res.setHeader('Content-Disposition', `attachment; filename="${files[0].filename}"`);
+    res.setHeader('Content-Type', files[0].type);
+    res.send(files[0].content);
+  } else {
+    const archiver = require('archiver');
+    res.setHeader('Content-Disposition', 'attachment; filename="export.zip"');
+    res.setHeader('Content-Type', 'application/zip');
+    const archive = archiver('zip');
+    archive.pipe(res);
+    files.forEach(f => archive.append(f.content, { name: f.filename }));
+    archive.finalize();
+  }
 });
 
 module.exports = router;
