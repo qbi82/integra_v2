@@ -3,6 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const Housing = require('../models/Housing');
 const xml2js = require('xml2js');
+const NBPRefRate = require('../models/NBPRefRate');
 
 const BDL_CLIENT_ID = '83ff02da-2edd-4095-33b7-08dd9ceefd0f';
 
@@ -155,40 +156,98 @@ async function fetchNBPRefHistory() {
 }
 
 router.get('/nbp-ref-history-avg', async (req, res) => {
-  const history = await fetchNBPRefHistory();
+  // Pobierz z bazy
+  let rates = await NBPRefRate.findAll();
+  if (rates.length === 0) {
+    // Jeśli brak danych, pobierz z API i uzupełnij ręcznie
+    const history = await fetchNBPRefHistory();
 
-  const byYear = {};
-  history.forEach(({ date, rate }) => {
-    const year = date.slice(0, 4);
-    if (!byYear[year]) byYear[year] = [];
-    byYear[year].push(rate);
-  });
+    const byYear = {};
+    history.forEach(({ date, rate }) => {
+      const year = date.slice(0, 4);
+      if (!byYear[year]) byYear[year] = [];
+      byYear[year].push(rate);
+    });
 
-  let avgByYear = Object.entries(byYear).map(([year, rates]) => ({
-    year,
-    avgRate: rates.reduce((a, b) => a + b, 0) / rates.length,
-  }));
+    let avgByYear = Object.entries(byYear).map(([year, rates]) => ({
+      year: parseInt(year, 10),
+      avgRate: rates.reduce((a, b) => a + b, 0) / rates.length,
+    }));
 
-  ['2016', '2017', '2018', '2019'].forEach(year => {
-    if (!avgByYear.find(obj => obj.year === year)) {
-      avgByYear.push({ year, avgRate: 1.5 });
+    // Dodaj brakujące lata 2016-2019 z wartością 1.5
+    [2016, 2017, 2018, 2019].forEach(year => {
+      if (!avgByYear.find(obj => obj.year === year)) {
+        avgByYear.push({ year, avgRate: 1.5 });
+      }
+    });
+
+    // Zapisz do bazy
+    for (const { year, avgRate } of avgByYear) {
+      await NBPRefRate.create({ year, avgRate });
     }
-  });
+    rates = await NBPRefRate.findAll();
+  }
 
-  avgByYear = avgByYear.sort((a, b) => a.year.localeCompare(b.year));
-
-  res.json(avgByYear);
+  // Zwróć posortowane dane
+  res.json(
+    rates
+      .map(r => ({ year: r.year, avgRate: r.avgRate }))
+      .sort((a, b) => a.year - b.year)
+  );
 });
 router.get('/bdl-data', async (req, res) => {
   try {
+    // Sprawdź, czy dane już są w bazie
+    const records = await Housing.findAll();
+    // Zakładamy, że komplet to: typy * regiony * lata
+    const expectedCount = housingType.length * REGION_IDS.length * YEARS.length;
+    if (records.length >= expectedCount) {
+      // Dane są kompletne, zwróć z bazy w tym samym formacie co dotychczas
+      const housingData = {};
+      for (const typeId of housingType) {
+        housingData[typeId] = REGION_IDS.map(regionId => ({
+          regionId,
+          variableId: typeId,
+          data: {
+            results: records
+              .filter(r => r.typeId === typeId && r.regionId === regionId)
+              .map(r => ({
+                year: r.year,
+                values: [{ val: r.price }]
+              }))
+          }
+        }));
+      }
+      return res.json({ housing: housingData });
+    }
+
+    // Jeśli nie ma kompletu danych, pobierz z API i zapisz do bazy
     const housingData = {};
     for (const typeId of housingType) {
       housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
+
+      // Zapisz do bazy WSZYSTKIE rekordy
+      for (const region of housingData[typeId]) {
+        for (const result of region.data.results) {
+          const price = result.values[0]?.val ?? null;
+          if (price != null) {
+            await Housing.findOrCreate({
+              where: {
+                regionId: region.regionId,
+                year: result.year,
+                typeId: typeId,
+              },
+              defaults: {
+                price: price,
+              },
+            });
+          }
+        }
+      }
     }
 
     res.json({
       housing: housingData,
-      
     });
   } catch (e) {
     res.status(500).json({ error: 'Błąd pobierania danych z BDL', details: e.message });

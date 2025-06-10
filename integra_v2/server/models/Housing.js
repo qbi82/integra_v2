@@ -14,6 +14,17 @@ const Housing = sequelize.define('Housing', {
     type: DataTypes.FLOAT,
     allowNull: false,
   },
+  typeId: { // Dodane pole
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+}, {
+  indexes: [
+    {
+      unique: true,
+      fields: ['regionId', 'year', 'typeId'],
+    },
+  ],
 });
 
 module.exports = Housing;
