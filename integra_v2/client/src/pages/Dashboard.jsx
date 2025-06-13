@@ -162,7 +162,7 @@ const Dashboard = () => {
     ],
   };
 
-  // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
+   // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
   const housingTypeData = data.housing[selectedType] || [];
   const datasets = housingTypeData
     .filter(region => visibleRegions[region.regionId])
@@ -187,7 +187,14 @@ const Dashboard = () => {
   };
 
   // Wykres 2: typy mieszkań na jednym wykresie, region wybierany
-  const datasetsByType = Object.entries(housingTypeNames).map(([typeId, typeName]) => {
+  const typeColors = [
+    '#7b1fa2', // do 40m2 - fioletowy
+    '#1976d2', // od 40.1 m2 do 60m2 - niebieski
+    '#388e3c', // od 60m2 do 80m2 - zielony
+    '#fbc02d', // od 80m2 - żółty
+  ];
+
+  const datasetsByType = Object.entries(housingTypeNames).map(([typeId, typeName], idx) => {
     const regionData = (data.housing[typeId] || []).find(r => r.regionId === selectedRegionForTypes);
     const results = (regionData?.data?.results || []).filter(
       r => r.values[0]?.val != null && r.year >= 2013 && r.year <= 2023
@@ -195,9 +202,11 @@ const Dashboard = () => {
     return {
       label: typeName,
       data: results.map(r => r.values[0]?.val),
-      borderColor: '#' + ((Math.abs(typeId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) * 654321) % 0xffffff).toString(16).padStart(6, '0'),
-      backgroundColor: 'rgba(0,0,0,0.05)',
+      borderColor: typeColors[idx],
+      backgroundColor: typeColors[idx] + '22', // przezroczystość
       tension: 0.2,
+      borderWidth: 3,
+      pointRadius: 3,
     };
   });
 
@@ -206,7 +215,6 @@ const Dashboard = () => {
     datasets: datasetsByType,
   };
 
-  
   return (
     <div>
       <h1>Panel użytkownika</h1>
@@ -303,22 +311,33 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-      <div>
-        <label>Typ mieszkania:&nbsp;
-          <select value={selectedType} onChange={e => setSelectedType(e.target.value)}>
-            {Object.entries(housingTypeNames).map(([typeId, name]) => (
-              <option key={typeId} value={typeId}>{name}</option>
-            ))}
-          </select>
-        </label>
-      </div>
       {/* Dwa wykresy obok siebie */}
-      <div style={{ display: 'flex', gap: 32, justifyContent: 'center', margin: '2rem auto', maxWidth: 1700 }}>
-        <div style={{ flex: 1, minWidth: 400 }}>
-          <h3>Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
+      <div style={{ display: 'flex', gap: 32, justifyContent: 'center', alignItems: 'flex-start', margin: '2rem auto', maxWidth: 1700 }}>
+        <div style={{ flex: 1, minWidth: 500, maxWidth: 760, maxHeight: 625 }}>
+          <h3 style={{ textAlign: 'center' }}>Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <label>Typ mieszkania:&nbsp;
+              <select value={selectedType} onChange={e => setSelectedType(e.target.value)}>
+                {Object.entries(housingTypeNames).map(([typeId, name]) => (
+                  <option key={typeId} value={typeId}>{name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <Line
             data={housingChartData}
             options={{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    boxWidth: 20,
+                    font: { size: 12 },
+                    padding: 10,
+                  }
+                }
+              },
               scales: {
                 y: {
                   title: {
@@ -327,7 +346,7 @@ const Dashboard = () => {
                   },
                   ticks: {
                     stepSize: 50000,
-                    callback: function(value) {
+                    callback: function (value) {
                       return value.toLocaleString('pl-PL') + ' zł';
                     }
                   }
@@ -340,15 +359,42 @@ const Dashboard = () => {
                 }
               }
             }}
+            height={400}
+            width={700}
           />
         </div>
-        <div style={{ flex: 1, minWidth: 400 }}>
-          <h3>Stopa referencyjna NBP (historia)</h3>
-          <Line data={nbpRefHistoryChartData} />
+        <div style={{ flex: 1, minWidth: 500, maxWidth: 750, maxHeight: 510 }}>
+          <h3 style={{ textAlign: 'center', paddingBottom: 91 }}>Stopa referencyjna NBP (historia)</h3>
+          <Line
+            data={nbpRefHistoryChartData}
+            options={{
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    boxWidth: 20,
+                    font: { size: 12 },
+                    padding: 10,
+                  }
+                }
+              }
+            }}
+            height={500}
+            width={700}
+          />
         </div>
       </div>
       {/* Pozostałe wykresy pod spodem */}
-      <div style={{ maxWidth: 1000, margin: '2rem auto' }}>
+      <div
+        style={{
+          display: 'block',
+          width: '100%',
+          maxWidth: 1000,
+          margin: '10rem auto 2rem auto',
+          clear: 'both',
+        }}
+      >
         <h3>Ceny mieszkań wg typu dla wybranego regionu</h3>
         <label>
           Wybierz region:&nbsp;
@@ -374,7 +420,7 @@ const Dashboard = () => {
                 },
                 ticks: {
                   stepSize: 50000,
-                  callback: function(value) {
+                  callback: function (value) {
                     return value.toLocaleString('pl-PL') + ' zł';
                   }
                 }
