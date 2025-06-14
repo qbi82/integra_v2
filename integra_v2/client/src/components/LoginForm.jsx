@@ -38,36 +38,39 @@ const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 300, margin: '2rem auto' }}>
-      <h2>{isRegister ? 'Rejestracja' : 'Logowanie'}</h2>
-      <input
-        type="text"
-        placeholder="Login"
-        value={username}
-        onChange={e => setUsername(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Hasło"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        required
-      />
-      <button type="submit">{isRegister ? 'Zarejestruj' : 'Zaloguj'}</button>
-      <button
-        type="button"
-        style={{ marginLeft: 8 }}
-        onClick={() => {
-          setIsRegister(r => !r);
-          setError('');
-        }}
-      >
-        {isRegister ? 'Masz konto? Zaloguj się' : 'Zarejestruj się'}
-      </button>
-      {error && <div style={{ color: isRegister && error.startsWith('Rejestracja udana') ? 'green' : 'red' }}>{error}</div>}
-    </form>
-  );
+  <form onSubmit={handleSubmit} className="login-container">
+    <h2>{isRegister ? 'Rejestracja' : 'Logowanie'}</h2>
+    <input
+      type="text"
+      placeholder="Login"
+      value={username}
+      onChange={e => setUsername(e.target.value)}
+      required
+    />
+    <input
+      type="password"
+      placeholder="Hasło"
+      value={password}
+      onChange={e => setPassword(e.target.value)}
+      required
+    />
+    <button type="submit">{isRegister ? 'Zarejestruj' : 'Zaloguj'}</button>
+    <button
+      type="button"
+      onClick={() => {
+        setIsRegister(r => !r);
+        setError('');
+      }}
+    >
+      {isRegister ? 'Masz konto? Zaloguj się' : 'Zarejestruj się'}
+    </button>
+    {error && (
+      <div className={isRegister && error.startsWith('Rejestracja udana') ? 'success-message' : 'error-message'}>
+        {error}
+      </div>
+    )}
+  </form>
+);
 };
 
 export default LoginForm;

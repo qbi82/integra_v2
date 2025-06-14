@@ -36,3 +36,315 @@
     transform: rotate(360deg);
   }
 }
+
+.login-bg {
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #ececf5 0%, #f1eff3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container {
+  width: 370px;
+  min-height: 370px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(128, 0, 128, 0.13), 0 1.5px 8px rgba(128,0,128,0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+  position: relative;
+}
+
+.login-container h2 {
+  margin-bottom: 2rem;
+  color: #521eaa;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.login-container input[type="text"],
+.login-container input[type="password"] {
+  width: 100%;
+  padding: 0.85rem;
+  margin-bottom: 1.2rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 7px;
+  font-size: 1.08rem;
+  background: #f6f8fa;
+  transition: border 0.2s;
+}
+
+.login-container input:focus {
+  border: 1.5px solid #6a27a8;
+  outline: none;
+  background: #fff;
+}
+
+.login-container button[type="submit"] {
+  width: 100%;
+  padding: 0.85rem;
+  background: linear-gradient(90deg, #6828a3 60%, #5826ad 100%);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 1.08rem;
+  cursor: pointer;
+  margin-bottom: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(128, 0, 128, 0.08);
+  transition: background 0.2s;
+}
+
+.login-container button[type="submit"]:hover {
+  background: linear-gradient(90deg, #7c3aed 60%, #a259e6 100%);
+}
+
+.login-container button[type="button"] {
+  background: none;
+  border: none;
+  color: #6824dd;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.login-container button[type="button"]:hover {
+  color: #a259e6;
+}
+
+.login-container .error-message {
+  color: #b83280;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.login-container .success-message {
+  color: #3f38b8;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.dashboard-navbar {
+  width: 100%;
+  min-height: 64px;
+  background: linear-gradient(90deg, #6828a3 60%, #5826ad 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 1.18rem;
+  font-weight: 500;
+  box-shadow: 0 2px 12px rgba(104,40,163,0.08);
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-left: 2rem;
+}
+
+.dashboard-welcome {
+  font-size: 1.18rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.dashboard-export-btn {
+  background: #fff;
+  color: #6828a3;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-left: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(104,40,163,0.08);
+  transition: background 0.2s, color 0.2s;
+}
+
+.dashboard-export-btn:hover {
+  background: #f3e9fc;
+  color: #521eaa;
+}
+
+.dashboard-logout-btn {
+  background: none;
+  color: #fff;
+  border: 1.5px solid #fff;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  margin-right: 1.2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 1.2rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.dashboard-logout-btn:hover {
+  background: #fff;
+  color: #6828a3;
+}
+
+
+
+
+
+
+
+
+.chart-section-title {
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #6828a3;
+  margin-bottom: 1.2rem;
+  letter-spacing: 0.5px;
+}
+
+.chart-section-select {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+}
+
+.chart-section-select label {
+  font-size: 1.3rem;
+  color: #3f38b8;
+  font-weight: 500;
+}
+
+.chart-section-select select {
+  padding: 0.2rem 0.2rem;
+  border-radius: 6px;
+  border: 1.5px solid #bdbdbd;
+  font-size: 1rem;
+  background: #f6f8fa;
+  transition: border 0.2s;
+}
+.chart-section-select select:focus {
+  border: 1.5px solid #6828a3;
+  outline: none;
+}
+
+
+
+
+
+.export-modal {
+  min-width: 350px;
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.export-modal h3 {
+  margin-bottom: 1.5rem;
+  color: #521eaa;
+  font-weight: 600;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.export-modal label {
+  font-size: 1.08rem;
+  color: #3f38b8;
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+
+}
+
+.export-modal input[type="checkbox"] {
+  accent-color: #6828a3;
+  width: 18px;
+  height: 18px;
+  margin-right: 0.5rem;
+  flex-shrink: 0; 
+}
+
+.export-modal input[type="number"] {
+  padding: 0.4rem 0.7rem;
+  border-radius: 7px;
+  border: 1.5px solid #e0e0e0;
+  font-size: 1.08rem;
+  background: #f6f8fa;
+  margin: 0 0.3rem;
+  width: 80px;
+}
+
+.export-modal input[type="number"]:focus {
+  border: 1.5px solid #6a27a8;
+  outline: none;
+  background: #fff;
+}
+
+.export-modal button {
+  padding: 0.85rem;
+  background: linear-gradient(90deg, #6828a3 60%, #5826ad 100%);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 1.08rem;
+  cursor: pointer;
+  margin-bottom: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(128, 0, 128, 0.08);
+  transition: background 0.2s;
+  min-width: 120px;
+}
+
+.export-modal button:hover {
+  background: linear-gradient(90deg, #7c3aed 60%, #a259e6 100%);
+}
+
+.export-modal > div {
+  margin-bottom: 1rem;
+}
+.export-modal {
+  min-width: 600px;
+  max-width: 800px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.export-modal-columns {
+  display: flex;
+  gap: 2.5rem;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+}
+
+.export-regions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 1.2rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.export-types-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}

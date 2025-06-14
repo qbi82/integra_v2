@@ -6,13 +6,17 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,    
+  BarController, 
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 import { useNavigate } from 'react-router-dom';
+import { Bar } from 'react-chartjs-2';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement,  BarElement, 
+  BarController,Title, Tooltip, Legend);
 
 const regionNames = {
   '023210000000': 'REGION ZACHODNIOPOMORSKIE',
@@ -43,7 +47,8 @@ const housingTypeNames = {
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
-  const [selectedType, setSelectedType] = useState('633663');
+  const [selectedBarType, setSelectedBarType] = useState('633663');
+  const [selectedType, setSelectedType] = useState('633663'); 
   const allRegionIds = Object.keys(regionNames);
   const [visibleRegions, setVisibleRegions] = useState(() =>
     Object.fromEntries(allRegionIds.map(id => [id, true]))
@@ -52,11 +57,14 @@ const Dashboard = () => {
   const [selectedRegionForTypes, setSelectedRegionForTypes] = useState(allRegionIds[0]);
   const navigate = useNavigate();
 
+  // Pasek powitalny
+  const [username, setUsername] = useState('');
+
   // Stan do eksportu
   const [showExport, setShowExport] = useState(false);
-  const [exportRegions, setExportRegions] = useState(allRegionIds);
-  const [exportTypes, setExportTypes] = useState(Object.keys(housingTypeNames));
-  const [exportDateFrom, setExportDateFrom] = useState(2010);
+  const [exportRegions, setExportRegions] = useState([allRegionIds[0]]);
+  const [exportTypes, setExportTypes] = useState([Object.keys(housingTypeNames)[0]]);
+  const [exportDateFrom, setExportDateFrom] = useState(2013);
   const [exportDateTo, setExportDateTo] = useState(2023);
   const [exportFormat, setExportFormat] = useState({ json: true, xml: false });
 
@@ -97,6 +105,19 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
+  // Pobierz dane użytkownika (przykład: z endpointu /me)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('http://localhost:4000/me', {
+        headers: { Authorization: 'Bearer ' + token }
+      })
+        .then(res => res.json())
+        .then(data => setUsername(data.username || ''))
+        .catch(() => setUsername(''));
+    }
+  }, []);
+
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
       .then(res => res.json())
@@ -120,7 +141,6 @@ const Dashboard = () => {
       .then(res => res.json())
       .then(data => {
         // obsłuż dane chronione
-        console.log('Dane chronione:', data);
       })
       .catch(() => {
         // obsłuż błąd autoryzacji
@@ -162,7 +182,7 @@ const Dashboard = () => {
     ],
   };
 
-   // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
+  // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
   const housingTypeData = data.housing[selectedType] || [];
   const datasets = housingTypeData
     .filter(region => visibleRegions[region.regionId])
@@ -205,8 +225,8 @@ const Dashboard = () => {
       borderColor: typeColors[idx],
       backgroundColor: typeColors[idx] + '22', // przezroczystość
       tension: 0.2,
-      borderWidth: 3,
-      pointRadius: 3,
+      borderWidth: 4,
+      pointRadius: 2,
     };
   });
 
@@ -215,63 +235,121 @@ const Dashboard = () => {
     datasets: datasetsByType,
   };
 
+  // --- OSOBNY WYBÓR TYPU DLA WYKRESU SŁUPKOWEGO ---
+  const barHousingTypeData = data.housing[selectedBarType] || [];
+  const avgPricesByYear = years.map(year => {
+    const values = barHousingTypeData
+      .map(region =>
+        (region.data?.results || []).find(r => r.year === parseInt(year))?.values[0]?.val
+      )
+      .filter(v => v != null);
+    if (values.length === 0) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  });
+
+  const nbpRatesByYear = years.map(year =>
+    nbpRefHistoryAvgFiltered.find(r => r.year === parseInt(year))?.avgRate ?? null
+  );
+
+  const barChartData = {
+    labels: years,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Średnia cena mieszkań (PLN)',
+        data: avgPricesByYear,
+        backgroundColor: '#7b1fa2',
+        yAxisID: 'y',
+        order: 2,
+      },
+      {
+        type: 'line',
+        label: 'Stopa referencyjna NBP (%)',
+        data: nbpRatesByYear,
+        borderColor: 'orange',
+        backgroundColor: 'rgba(255,165,0,0.15)',
+        yAxisID: 'y1',
+        tension: 0.2,
+        pointRadius: 3,
+        borderWidth: 5,
+        order: 1,
+      }
+    ]
+  };
+
   return (
-    <div>
-      <h1>Panel użytkownika</h1>
-      <button onClick={handleLogout} style={{ float: 'right', marginTop: '-3rem' }}>Wyloguj</button>
-      <p>Jesteś zalogowany!</p>
-      <h2>Dane z BDL</h2>
-      <button onClick={() => setShowExport(true)} style={{ margin: '1rem 0' }}>Eksportuj</button>
+    <div style={{ width:'100%', margin: '0 auto', padding: '0px' }}>
+      {/* Pasek nawigacyjny */}
+      <div className="dashboard-navbar">
+        <div className="dashboard-navbar-left">
+          <span className="dashboard-welcome">
+            Witaj{username ? `, ${username}!` : '!'}
+          </span>
+          <button className="dashboard-export-btn" onClick={() => setShowExport(true)}>
+            Eksportuj
+          </button>
+        </div>
+        <button className="dashboard-logout-btn" onClick={handleLogout}>
+          Wyloguj
+        </button>
+      </div>
+      {/* Eksport modal */}
       {showExport && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
           background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 350 }}>
+          <div className="login-container export-modal">
             <h3>Eksport danych</h3>
-            <div>
-              <strong>Regiony:</strong><br />
-              {allRegionIds.map(regionId => (
-                <label key={regionId} style={{ display: 'block' }}>
-                  <input
-                    type="checkbox"
-                    checked={exportRegions.includes(regionId)}
-                    onChange={e => {
-                      setExportRegions(regions =>
-                        e.target.checked
-                          ? [...regions, regionId]
-                          : regions.filter(r => r !== regionId)
-                      );
-                    }}
-                  />
-                  {regionNames[regionId]}
-                </label>
-              ))}
-            </div>
-            <div>
-              <strong>Typy mieszkań:</strong><br />
-              {Object.entries(housingTypeNames).map(([typeId, name]) => (
-                <label key={typeId} style={{ display: 'block' }}>
-                  <input
-                    type="checkbox"
-                    checked={exportTypes.includes(typeId)}
-                    onChange={e => {
-                      setExportTypes(types =>
-                        e.target.checked
-                          ? [...types, typeId]
-                          : types.filter(t => t !== typeId)
-                      );
-                    }}
-                  />
-                  {name}
-                </label>
-              ))}
+            <div className="export-modal-columns">
+              <div>
+                <strong>Regiony:</strong>
+                <div className="export-regions-grid">
+                  {allRegionIds.map(regionId => (
+                    <label key={regionId}>
+                      <input
+                        type="checkbox"
+                        checked={exportRegions.includes(regionId)}
+                        onChange={e => {
+                          setExportRegions(regions =>
+                            e.target.checked
+                              ? [...regions, regionId]
+                              : regions.filter(r => r !== regionId)
+                          );
+                        }}
+                      />
+                      {regionNames[regionId]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <strong>Typy mieszkań:</strong>
+                <div className="export-types-list">
+                  {Object.entries(housingTypeNames).map(([typeId, name]) => (
+                    <label key={typeId}>
+                      <input
+                        type="checkbox"
+                        checked={exportTypes.includes(typeId)}
+                        onChange={e => {
+                          setExportTypes(types =>
+                            e.target.checked
+                              ? [...types, typeId]
+                              : types.filter(t => t !== typeId)
+                          );
+                        }}
+                      />
+                      {name}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
             <div>
               <strong>Zakres lat:</strong><br />
               <input
                 type="number"
-                min="2010"
+                min="2013"
                 max="2023"
                 value={exportDateFrom}
                 onChange={e => setExportDateFrom(Number(e.target.value))}
@@ -280,7 +358,7 @@ const Dashboard = () => {
               do{' '}
               <input
                 type="number"
-                min="2010"
+                min="2013"
                 max="2023"
                 value={exportDateTo}
                 onChange={e => setExportDateTo(Number(e.target.value))}
@@ -312,10 +390,10 @@ const Dashboard = () => {
         </div>
       )}
       {/* Dwa wykresy obok siebie */}
-      <div style={{ display: 'flex', gap: 32, justifyContent: 'center', alignItems: 'flex-start', margin: '2rem auto', maxWidth: 1700 }}>
+      <div style={{ display: 'flex', gap: 20, justifyContent: 'center', alignItems: 'flex-start', margin: '2rem auto', width:'100%'}}>
         <div style={{ flex: 1, minWidth: 500, maxWidth: 760, maxHeight: 625 }}>
-          <h3 style={{ textAlign: 'center' }}>Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <h3 className="chart-section-title">Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
+           <div className="chart-section-select">
             <label>Typ mieszkania:&nbsp;
               <select value={selectedType} onChange={e => setSelectedType(e.target.value)}>
                 {Object.entries(housingTypeNames).map(([typeId, name]) => (
@@ -336,6 +414,13 @@ const Dashboard = () => {
                     font: { size: 12 },
                     padding: 10,
                   }
+                }
+              },
+              elements: {
+                point: {
+                  radius: 2,
+                  borderWidth: 4,
+                  backgroundColor: '#fff',
                 }
               },
               scales: {
@@ -364,7 +449,7 @@ const Dashboard = () => {
           />
         </div>
         <div style={{ flex: 1, minWidth: 500, maxWidth: 750, maxHeight: 510 }}>
-          <h3 style={{ textAlign: 'center', paddingBottom: 91 }}>Stopa referencyjna NBP (historia)</h3>
+          <h3 className="chart-section-title" style={{ paddingBottom: 146 }} >Stopa referencyjna NBP (historia)</h3>
           <Line
             data={nbpRefHistoryChartData}
             options={{
@@ -378,7 +463,14 @@ const Dashboard = () => {
                     padding: 10,
                   }
                 }
-              }
+              },
+              elements: {
+                point: {
+                  radius: 2,
+                  borderWidth: 4,
+                  backgroundColor: '#fff',
+                }
+              },
             }}
             height={500}
             width={700}
@@ -395,7 +487,8 @@ const Dashboard = () => {
           clear: 'both',
         }}
       >
-        <h3>Ceny mieszkań wg typu dla wybranego regionu</h3>
+        <h3 className="chart-section-title">Ceny mieszkań wg typu dla wybranego regionu</h3>
+        <div className="chart-section-select">
         <label>
           Wybierz region:&nbsp;
           <select
@@ -409,6 +502,7 @@ const Dashboard = () => {
             ))}
           </select>
         </label>
+        </div>
         <Line
           data={housingChartDataByType}
           options={{
@@ -431,10 +525,77 @@ const Dashboard = () => {
                   text: 'Rok'
                 }
               }
-            }
+            },
+            elements: {
+                point: {
+                  radius: 3,
+                  borderWidth: 5
+                }
+              }
           }}
         />
       </div>
+      <div
+  style={{
+    display: 'block',
+    width: '100%',
+    maxWidth: 1100,
+    margin: '4rem auto 1rem auto',
+    clear: 'both',
+  }}
+>
+  <h3 className="chart-section-title">Średnia cena mieszkań (wszystkie regiony, wybrany typ) i stopy referencyjne NBP</h3>
+  <div className="chart-section-select">
+    <label>
+      Typ mieszkania:&nbsp;
+      <select value={selectedBarType} onChange={e => setSelectedBarType(e.target.value)}>
+        {Object.entries(housingTypeNames).map(([typeId, name]) => (
+          <option key={typeId} value={typeId}>{name}</option>
+        ))}
+      </select>
+    </label>
+  </div>
+  <Bar
+    data={barChartData}
+    options={{
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      elements: {
+        bar: {
+          barPercentage: 0.7, 
+          categoryPercentage: 0.7
+        }
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: 'Cena (PLN)' },
+          ticks: {
+            callback: value => value.toLocaleString('pl-PL') + ' zł',
+            beginAtZero: true
+          }
+        },
+        y1: {
+          type: 'linear',
+          position: 'right',
+          title: { display: true, text: 'Stopa referencyjna (%)' },
+          grid: { drawOnChartArea: false },
+          min: 0,
+          max: 8,
+        },
+        x: {
+          title: { display: true, text: 'Rok' }
+        }
+      }
+    }}
+    width={800}
+    height={400}
+  />
+</div>
     </div>
   );
 };
