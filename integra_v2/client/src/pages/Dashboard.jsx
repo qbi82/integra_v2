@@ -57,10 +57,8 @@ const Dashboard = () => {
   const [selectedRegionForTypes, setSelectedRegionForTypes] = useState(allRegionIds[0]);
   const navigate = useNavigate();
 
-  // Pasek powitalny
   const [username, setUsername] = useState('');
 
-  // Stan do eksportu
   const [showExport, setShowExport] = useState(false);
   const [exportRegions, setExportRegions] = useState([allRegionIds[0]]);
   const [exportTypes, setExportTypes] = useState([Object.keys(housingTypeNames)[0]]);
@@ -68,7 +66,6 @@ const Dashboard = () => {
   const [exportDateTo, setExportDateTo] = useState(2023);
   const [exportFormat, setExportFormat] = useState({ json: true, xml: false });
 
-  // Funkcja eksportu
   const handleExport = async () => {
     const params = new URLSearchParams();
     exportRegions.forEach(r => params.append('regions', r));
@@ -97,7 +94,6 @@ const Dashboard = () => {
     setShowExport(false);
   };
 
-  // Wymuś logowanie
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -105,18 +101,17 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  // Pobierz dane użytkownika (przykład: z endpointu /me)
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetch('http://localhost:4000/me', {
-        headers: { Authorization: 'Bearer ' + token }
-      })
-        .then(res => res.json())
-        .then(data => setUsername(data.username || ''))
-        .catch(() => setUsername(''));
-    }
-  }, []);
+ useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    fetch('http://localhost:4000/auth/me', {
+      headers: { Authorization: 'Bearer ' + token }
+    })
+      .then(res => res.json())
+      .then(data => setUsername(data.username || ''))
+      .catch(() => setUsername(''));
+  }
+}, []);
 
   useEffect(() => {
     fetch('http://localhost:4000/api/bdl-data')
@@ -182,7 +177,6 @@ const Dashboard = () => {
     ],
   };
 
-  // Wykres 1: regiony na jednym wykresie, typ mieszkania wybierany
   const housingTypeData = data.housing[selectedType] || [];
   const datasets = housingTypeData
     .filter(region => visibleRegions[region.regionId])
@@ -206,12 +200,11 @@ const Dashboard = () => {
     datasets,
   };
 
-  // Wykres 2: typy mieszkań na jednym wykresie, region wybierany
   const typeColors = [
-    '#7b1fa2', // do 40m2 - fioletowy
-    '#1976d2', // od 40.1 m2 do 60m2 - niebieski
-    '#388e3c', // od 60m2 do 80m2 - zielony
-    '#fbc02d', // od 80m2 - żółty
+    '#7b1fa2', 
+    '#1976d2', 
+    '#388e3c',
+    '#fbc02d', 
   ];
 
   const datasetsByType = Object.entries(housingTypeNames).map(([typeId, typeName], idx) => {
@@ -223,7 +216,7 @@ const Dashboard = () => {
       label: typeName,
       data: results.map(r => r.values[0]?.val),
       borderColor: typeColors[idx],
-      backgroundColor: typeColors[idx] + '22', // przezroczystość
+      backgroundColor: typeColors[idx] + '22', 
       tension: 0.2,
       borderWidth: 4,
       pointRadius: 2,
@@ -235,7 +228,6 @@ const Dashboard = () => {
     datasets: datasetsByType,
   };
 
-  // --- OSOBNY WYBÓR TYPU DLA WYKRESU SŁUPKOWEGO ---
   const barHousingTypeData = data.housing[selectedBarType] || [];
   const avgPricesByYear = years.map(year => {
     const values = barHousingTypeData
@@ -279,7 +271,6 @@ const Dashboard = () => {
 
   return (
     <div style={{ width:'100%', margin: '0 auto', padding: '0px' }}>
-      {/* Pasek nawigacyjny */}
       <div className="dashboard-navbar">
         <div className="dashboard-navbar-left">
           <span className="dashboard-welcome">
@@ -293,7 +284,6 @@ const Dashboard = () => {
           Wyloguj
         </button>
       </div>
-      {/* Eksport modal */}
       {showExport && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -389,7 +379,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-      {/* Dwa wykresy obok siebie */}
       <div style={{ display: 'flex', gap: 20, justifyContent: 'center', alignItems: 'flex-start', margin: '2rem auto', width:'100%'}}>
         <div style={{ flex: 1, minWidth: 500, maxWidth: 760, maxHeight: 625 }}>
           <h3 className="chart-section-title">Ceny mieszkań (wszystkie regiony, wybrany typ)</h3>
@@ -477,7 +466,6 @@ const Dashboard = () => {
           />
         </div>
       </div>
-      {/* Pozostałe wykresy pod spodem */}
       <div
         style={{
           display: 'block',
