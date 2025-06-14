@@ -127,30 +127,8 @@ const Dashboard = () => {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    fetch('http://localhost:4000/api/secure-data', {
-      headers: {
-        Authorization: 'Bearer ' + localStorage.getItem('token')
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        // obsłuż dane chronione
-      })
-      .catch(() => {
-        // obsłuż błąd autoryzacji
-      });
-  }, []);
-
   if (err) return <div style={{ color: 'red' }}>{err}</div>;
   if (!data) return <div>Ładowanie danych...</div>;
-
-  const handleRegionCheckbox = (regionId) => {
-    setVisibleRegions(prev => ({
-      ...prev,
-      [regionId]: !prev[regionId]
-    }));
-  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');

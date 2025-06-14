@@ -47,11 +47,6 @@ router.post('/login', async (req, res) => {
   res.json({ success: true, token });
 });
 
-const handleLogout = () => {
-  localStorage.removeItem('token');
-  navigate('/');
-};
-
 router.get('/me', (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ message: 'Brak tokenu' });

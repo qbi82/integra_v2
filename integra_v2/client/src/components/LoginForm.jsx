@@ -23,7 +23,7 @@ const LoginForm = () => {
       const data = await res.json();
       if (data.success) {
         if (!isRegister) {
-          localStorage.setItem('token', data.token); // JWT zapisany w localStorage
+          localStorage.setItem('token', data.token); 
           navigate('/dashboard');
         } else {
           setIsRegister(false);

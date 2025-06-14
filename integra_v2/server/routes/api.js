@@ -5,13 +5,10 @@ const Housing = require('../models/Housing');
 const xml2js = require('xml2js');
 const NBPRefRate = require('../models/NBPRefRate');
 const json2xml = require('json2xml');
-
+const sequelize = require('../db');
 const BDL_CLIENT_ID = '83ff02da-2edd-4095-33b7-08dd9ceefd0f';
 
-const VARIABLE_IDS = {
-  housingPrice : '633663',
-  //interestRate: '176912',
-};
+
 const housingType = [
   '633663', // 'do 40m2',
   '633664', // 'od 40.1 m2 do 60m2',
@@ -63,9 +60,7 @@ const YEARS = Array.from({ length: 10 }, (_, i) => 2010 + i);
 
 async function fetchBDLData(variableId, years, regionIds) {
   const results = [];
-  // Usuwamy xml2js i parser
 
-  // Limit: 5 zapytań na sekundę (anonimowy użytkownik)
   const REQUESTS_PER_SECOND = 5;
   let requestCount = 0;
   let lastRequestTime = Date.now();
@@ -83,7 +78,7 @@ async function fetchBDLData(variableId, years, regionIds) {
 
     const url = `https://bdl.stat.gov.pl/api/v1/data/by-variable/${variableId}`;
     const params = {
-      format: 'json', // <-- zmiana na JSON
+      format: 'json',
       'unit-parent-id': regionId,
       'unit-level': '3',
       year: years,
@@ -97,7 +92,6 @@ async function fetchBDLData(variableId, years, regionIds) {
         },
       });
 
-      // Odpowiedź jest już w formacie JSON
       const apiData = response.data;
       if (apiData.results && apiData.results.length > 0) {
         results.push({
@@ -127,7 +121,6 @@ async function fetchNBPRefHistory() {
     const xml = response.data;
     const result = await xml2js.parseStringPromise(xml, { explicitArray: false, mergeAttrs: true });
 
-    // Każdy <pozycje> to zmiana stóp, interesuje nas tylko id="ref"
     const pozycjeArr = Array.isArray(result.stopy_procentowe_archiwum.pozycje)
       ? result.stopy_procentowe_archiwum.pozycje
       : [result.stopy_procentowe_archiwum.pozycje];
@@ -136,7 +129,6 @@ async function fetchNBPRefHistory() {
     const refHistory = pozycjeArr
       .map(poz => {
         const date = poz.obowiazuje_od;
-        // pozycja może być tablicą lub obiektem
         const pozycjaArr = Array.isArray(poz.pozycja) ? poz.pozycja : [poz.pozycja];
         const ref = pozycjaArr.find(p => p.id === 'ref');
         if (ref) {
@@ -157,10 +149,8 @@ async function fetchNBPRefHistory() {
 }
 
 router.get('/nbp-ref-history-avg', async (req, res) => {
-  // Pobierz z bazy
   let rates = await NBPRefRate.findAll();
   if (rates.length === 0) {
-    // Jeśli brak danych, pobierz z API i uzupełnij ręcznie
     const history = await fetchNBPRefHistory();
 
     const byYear = {};
@@ -175,21 +165,28 @@ router.get('/nbp-ref-history-avg', async (req, res) => {
       avgRate: rates.reduce((a, b) => a + b, 0) / rates.length,
     }));
 
-    // Dodaj brakujące lata 2016-2019 z wartością 1.5
     [2016, 2017, 2018, 2019].forEach(year => {
       if (!avgByYear.find(obj => obj.year === year)) {
         avgByYear.push({ year, avgRate: 1.5 });
       }
     });
 
-    // Zapisz do bazy
-    for (const { year, avgRate } of avgByYear) {
-      await NBPRefRate.create({ year, avgRate });
+    // transakcja start
+    const transaction = await sequelize.transaction();
+    try {
+      for (const { year, avgRate } of avgByYear) {
+        await NBPRefRate.create({ year, avgRate }, { transaction });
+      }
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
+    // transakcja koniec
+
     rates = await NBPRefRate.findAll();
   }
 
-  // Zwróć posortowane dane
   res.json(
     rates
       .map(r => ({ year: r.year, avgRate: r.avgRate }))
@@ -198,12 +195,9 @@ router.get('/nbp-ref-history-avg', async (req, res) => {
 });
 router.get('/bdl-data', async (req, res) => {
   try {
-    // Sprawdź, czy dane już są w bazie
     const records = await Housing.findAll();
-    // Zakładamy, że komplet to: typy * regiony * lata
     const expectedCount = housingType.length * REGION_IDS.length * YEARS.length;
     if (records.length >= expectedCount) {
-      // Dane są kompletne, zwróć z bazy w tym samym formacie co dotychczas
       const housingData = {};
       for (const typeId of housingType) {
         housingData[typeId] = REGION_IDS.map(regionId => ({
@@ -222,29 +216,34 @@ router.get('/bdl-data', async (req, res) => {
       return res.json({ housing: housingData });
     }
 
-    // Jeśli nie ma kompletu danych, pobierz z API i zapisz do bazy
     const housingData = {};
-    for (const typeId of housingType) {
-      housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
-
-      // Zapisz do bazy WSZYSTKIE rekordy
-      for (const region of housingData[typeId]) {
-        for (const result of region.data.results) {
-          const price = result.values[0]?.val ?? null;
-          if (price != null) {
-            await Housing.findOrCreate({
-              where: {
-                regionId: region.regionId,
-                year: result.year,
-                typeId: typeId,
-              },
-              defaults: {
-                price: price,
-              },
-            });
+    const transaction = await sequelize.transaction();
+    try {
+      for (const typeId of housingType) {
+        housingData[typeId] = await fetchBDLData(typeId, YEARS, REGION_IDS);
+        for (const region of housingData[typeId]) {
+          for (const result of region.data.results) {
+            const price = result.values[0]?.val ?? null;
+            if (price != null) {
+              await Housing.findOrCreate({
+                where: {
+                  regionId: region.regionId,
+                  year: result.year,
+                  typeId: typeId,
+                },
+                defaults: {
+                  price: price,
+                },
+                transaction 
+              });
+            }
           }
         }
       }
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
 
     res.json({
@@ -276,15 +275,6 @@ router.get('/housing-db', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-
-// Przykładowy endpoint testowy
-router.get('/test', (req, res) => {
-  res.json({ message: 'API działa!' });
-});
-
-const { Parser: Json2XmlParser } = require('json2xml'); // Dodaj na górze pliku
-
-// ...istniejące importy...
 
 const regionNames = {
   '023210000000': 'REGION ZACHODNIOPOMORSKIE',
@@ -320,7 +310,7 @@ router.get('/export', async (req, res) => {
   const from = parseInt(dateFrom, 10);
   const to = parseInt(dateTo, 10);
 
-  // Pobierz rekordy mieszkań
+  // Pobierz rekordy mieszkan
   const records = await Housing.findAll({
     where: {
       regionId: regionArr,
@@ -336,7 +326,7 @@ router.get('/export', async (req, res) => {
     ratesByYear[r.year] = r.avgRate;
   });
 
-  // MAPUJEMY NAZWY + stopaRef
+  //mapowanie danych do formatu eksportu
   const data = records.map(r => ({
     region: regionNames[r.regionId] || r.regionId,
     type: housingTypeNames[r.typeId] || r.typeId,

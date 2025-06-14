@@ -14,7 +14,7 @@ const Housing = sequelize.define('Housing', {
     type: DataTypes.FLOAT,
     allowNull: false,
   },
-  typeId: { // Dodane pole
+  typeId: { 
     type: DataTypes.STRING,
     allowNull: false,
   },

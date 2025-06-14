@@ -1,70 +1,66 @@
-# Getting Started with Create React App
+## Projekt zaliczeniowy z laboratorium "Programowanie aplikacji internetowych"
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Tematyka projektu: Zestawienie danych na temat wysokości stóp procentowych i cen mieszkań w okresie ostatnich 10 lat, z uwzględnieniem regionów i typów mieszkań.
 
-## Available Scripts
+### Krótki opis projektu
+Aplikacja umożliwia przeglądanie i analizę danych dotyczących średnich cen mieszkań oraz stóp referencyjnych NBP w Polsce w podziale na regiony i typy mieszkań. Użytkownik może filtrować dane, generować wykresy, eksportować dane do plików XML/JSON oraz korzystać z panelu uwierzytelniania. Dane są pobierane z zewnętrznych API (NBP, BDL), zapisywane w bazie MySQL i prezentowane w nowoczesnym interfejsie webowym.
 
-In the project directory, you can run:
+## Autorzy: Maciej Targoński, Jakub Tadewicz
 
-### `npm start`
+## Funkcjonalności:
+- uwierzytelnianie użytkowników (JWT)
+- przeglądanie wykresów cen mieszkań i stóp procentowych
+- filtrowanie danych wg regionu i typu mieszkania
+- eksport danych w formacie XML lub JSON
+- pobieranie i zapis danych z zewnętrznych API (NBP, BDL)
+- zapis i odczyt danych z bazy danych przez ORM (Sequelize)
+- obsługa transakcji przy zapisie danych
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Narzędzia i technologie:
+- strona serwera: Node.js (Express), ORM: Sequelize
+- baza danych: MySQL
+- strona klienta: React, Chart.js, React Chart.js 2
+- autoryzacja: JWT
+- eksport: json2xml, archiver
+- docker-compose (baza danych, phpmyadmin)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Wymagania
 
-### `npm test`
+Wersje programów wykorzystane do tworzenia aplikacji:
+- Node.js 21.5.0
+- MySQL 8.x (uruchamiany przez Docker)
+- Docker/Docker Compose
+- React 19.x
+- npm 10.x
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Uruchomienie
 
-### `npm run build`
+1. Uruchom bazę danych i phpmyadmin:
+    docker-compose up -d
+ 
+2. Zainstaluj zależności backendu:
+    cd server
+    npm install
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. Zainstaluj zależności frontendowe:
+    cd client
+    npm install
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+5. Uruchom backend:
+    cd server
+    npm start
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+6. Uruchom frontend:
+    cd client
+    npm start
 
-### `npm run eject`
+7. Otwórz aplikację w przeglądarce pod adresem: (http://localhost:3000)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Uwagi
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- Domyślne dane logowania należy utworzyć przez rejestrację w aplikacji.
+- Panel phpMyAdmin dostępny jest pod adresem: (http://localhost:8080) (login: root, hasło: root)
+- Backend nasłuchuje na porcie 4000, frontend na 3000.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## Konta testowe
+- Można stworzyć własne konto przez formularz rejestracji
